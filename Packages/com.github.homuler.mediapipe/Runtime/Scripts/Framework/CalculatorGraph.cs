@@ -13,7 +13,7 @@ namespace Mediapipe
 {
   public class CalculatorGraph : MpResourceHandle
   {
-    public delegate IntPtr NativePacketCallback(IntPtr graphPtr, IntPtr packetPtr);
+    public delegate IntPtr NativePacketCallback(IntPtr graphPtr, int streamId, IntPtr packetPtr);
     public delegate Status PacketCallback<TPacket, TValue>(TPacket packet) where TPacket : Packet<TValue>;
 
     public CalculatorGraph() : base()
@@ -22,19 +22,15 @@ namespace Mediapipe
       this.ptr = ptr;
     }
 
-    public CalculatorGraph(string textFormatConfig) : base()
-    {
-      UnsafeNativeMethods.mp_CalculatorGraph__PKc(textFormatConfig, out var ptr).Assert();
-      this.ptr = ptr;
-    }
-
-    public CalculatorGraph(byte[] serializedConfig) : base()
+    private CalculatorGraph(byte[] serializedConfig) : base()
     {
       UnsafeNativeMethods.mp_CalculatorGraph__PKc_i(serializedConfig, serializedConfig.Length, out var ptr).Assert();
       this.ptr = ptr;
     }
 
     public CalculatorGraph(CalculatorGraphConfig config) : this(config.ToByteArray()) { }
+
+    public CalculatorGraph(string textFormatConfig) : this(CalculatorGraphConfig.Parser.ParseFromTextFormat(textFormatConfig)) { }
 
     protected override void DeleteMpPtr()
     {
@@ -71,22 +67,22 @@ namespace Mediapipe
       return config;
     }
 
-    public Status ObserveOutputStream(string streamName, NativePacketCallback nativePacketCallback, bool observeTimestampBounds = false)
+    public Status ObserveOutputStream(string streamName, int streamId, NativePacketCallback nativePacketCallback, bool observeTimestampBounds = false)
     {
-      UnsafeNativeMethods.mp_CalculatorGraph__ObserveOutputStream__PKc_PF_b(mpPtr, streamName, nativePacketCallback, observeTimestampBounds, out var statusPtr).Assert();
+      UnsafeNativeMethods.mp_CalculatorGraph__ObserveOutputStream__PKc_PF_b(mpPtr, streamName, streamId, nativePacketCallback, observeTimestampBounds, out var statusPtr).Assert();
 
       GC.KeepAlive(this);
       return new Status(statusPtr);
     }
 
-    public Status ObserveOutputStream<TPacket, TValue>(string streamName, PacketCallback<TPacket, TValue> packetCallback, bool observeTimestampBounds, out GCHandle callbackHandle) where TPacket : Packet<TValue>
+    public Status ObserveOutputStream<TPacket, TValue>(string streamName, PacketCallback<TPacket, TValue> packetCallback, bool observeTimestampBounds, out GCHandle callbackHandle) where TPacket : Packet<TValue>, new()
     {
-      NativePacketCallback nativePacketCallback = (IntPtr _, IntPtr packetPtr) =>
+      NativePacketCallback nativePacketCallback = (IntPtr graphPtr, int streamId, IntPtr packetPtr) =>
       {
         Status status = null;
         try
         {
-          var packet = (TPacket)Activator.CreateInstance(typeof(TPacket), packetPtr, false);
+          var packet = Packet<TValue>.Create<TPacket>(packetPtr, false);
           status = packetCallback(packet);
         }
         catch (Exception e)
@@ -97,10 +93,10 @@ namespace Mediapipe
       };
       callbackHandle = GCHandle.Alloc(nativePacketCallback, GCHandleType.Pinned);
 
-      return ObserveOutputStream(streamName, nativePacketCallback, observeTimestampBounds);
+      return ObserveOutputStream(streamName, 0, nativePacketCallback, observeTimestampBounds);
     }
 
-    public Status ObserveOutputStream<TPacket, TValue>(string streamName, PacketCallback<TPacket, TValue> packetCallback, out GCHandle callbackHandle) where TPacket : Packet<TValue>
+    public Status ObserveOutputStream<TPacket, TValue>(string streamName, PacketCallback<TPacket, TValue> packetCallback, out GCHandle callbackHandle) where TPacket : Packet<TValue>, new()
     {
       return ObserveOutputStream(streamName, packetCallback, false, out callbackHandle);
     }

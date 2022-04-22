@@ -12,11 +12,12 @@
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 /[Cc]ode[Cc]overage/
-/packages/
 *.csproj
 *.sln
+*.unitypackage
 
 *.aar
+*.bc
 *.dll
 *.dylib
 *.so

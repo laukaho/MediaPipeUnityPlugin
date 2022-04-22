@@ -11,7 +11,10 @@ namespace Mediapipe
 {
   public class StringPacket : Packet<string>
   {
-    public StringPacket() : base() { }
+    /// <summary>
+    ///   Creates an empty <see cref="StringPacket" /> instance.
+    /// </summary>
+    public StringPacket() : base(true) { }
 
     public StringPacket(IntPtr ptr, bool isOwner = true) : base(ptr, isOwner) { }
 
@@ -41,6 +44,11 @@ namespace Mediapipe
       this.ptr = ptr;
     }
 
+    public StringPacket At(Timestamp timestamp)
+    {
+      return At<StringPacket>(timestamp);
+    }
+
     public override string Get()
     {
       return MarshalStringFromNative(UnsafeNativeMethods.mp_Packet__GetString);
@@ -60,7 +68,10 @@ namespace Mediapipe
 
     public override StatusOr<string> Consume()
     {
-      throw new NotSupportedException();
+      UnsafeNativeMethods.mp_Packet__ConsumeString(mpPtr, out var statusOrStringPtr).Assert();
+
+      GC.KeepAlive(this);
+      return new StatusOrString(statusOrStringPtr);
     }
 
     public override Status ValidateAsType()
